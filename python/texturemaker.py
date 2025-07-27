@@ -22,14 +22,10 @@ def remove_extension(filename):
     """Remove the file extension from a filename."""
     return os.path.splitext(filename)[0]
 
-def default_texture_name_function(filename, prefix="", suffix=""):
-    """Default function to generate texture names with optional prefix and suffix."""
-    return f"{prefix}{remove_extension(filename)}{suffix}"
-
 def process_textures(
     input_folder,
     output_folder,
-    texture_name_function=default_texture_name_function,
+    texture_name_function=lambda x: x,
     template=TEMPLATE
 ):
     """Process all PNG files in the input folder to create JSON files in the output folder."""
@@ -46,7 +42,7 @@ def get_texture_template():
 if __name__ == "__main__":
     # Paths and settings
     TEXTURES_PATH = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Spaceflight Simulator\\Spaceflight Simulator Game\\Mods\\Custom Assets\\Texture Packs"
-    TEXTURE_FOLDER_NAME = "Su-60 Firefox"
+    TEXTURE_FOLDER_NAME = "Multipurpose Drop Pod"
     PREFIX = f"{TEXTURE_FOLDER_NAME}-"
     SUFFIX = ""
 
@@ -59,6 +55,6 @@ if __name__ == "__main__":
     process_textures(
         input_folder=INPUT_TEXTURE_PATH,
         output_folder=OUTPUT_TEXTURE_PATH,
-        texture_name_function=lambda x: default_texture_name_function(x, PREFIX, SUFFIX),
+        texture_name_function=lambda x: PREFIX + x + SUFFIX,
         template=texture_template,
     )

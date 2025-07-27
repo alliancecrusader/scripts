@@ -36,33 +36,49 @@ def should_ignore_color(color, ignore_list, threshold):
     """Check if a color should be ignored based on the ignore list."""
     return any(color_difference(color, ignored_color) <= threshold for ignored_color in ignore_list)
 
-def get_color_frequencies(image, ignore_colors, avg_difference_threshold):
-    """Calculate the frequency of each color in the image, excluding ignored colors."""
+def get_color_frequencies(image, ignore_colors, avg_difference_threshold, scan_mode):
     if image.mode != 'RGBA':
         image = image.convert('RGBA')
 
     color_count = Counter()
     total_counted_pixels = 0
 
-    for x in range(image.width):
-        for y in range(image.height):
-            pixel = image.getpixel((x, y))
-            if not should_ignore_color(pixel, ignore_colors, avg_difference_threshold):
-                color_count[pixel] += 1
-                total_counted_pixels += 1
+    if scan_mode == "row":
+        if image.height > image.width:
+            # Scan top to bottom (x=0, y in range)
+            coordinates = [(0, y) for y in range(image.height)]
+        elif image.width > image.height:
+            # Scan left to right (y=0, x in range)
+            coordinates = [(x, 0) for x in range(image.width)]
+        else:
+            # Square: ask user
+            orientation = input("Enter 'X' or 'Y': ")
+            if orientation.upper() == 'X':
+                coordinates = [(x, 0) for x in range(image.width)]
+            else:
+                coordinates = [(0, y) for y in range(image.height)]
+    else:
+        # Full image scan
+        coordinates = [(x, y) for y in range(image.height) for x in range(image.width)]
+
+    for (x, y) in coordinates:
+        pixel = image.getpixel((x, y))
+        if not should_ignore_color(pixel, ignore_colors, avg_difference_threshold):
+            color_count[pixel] += 1
+            total_counted_pixels += 1
 
     if total_counted_pixels == 0:
         print("Warning: All pixels matched ignore list!")
         return {}, 0
 
     color_percentages = {
-        color: (count / total_counted_pixels) * 100 
+        color: (count / total_counted_pixels) * 100
         for color, count in color_count.items()
     }
 
     return color_percentages, total_counted_pixels
 
-def get_unique_colors(image, avg_difference_threshold=0, max_colors=math.inf, min_pixel_percentage=1.0, ignore_colors=None):
+def get_unique_colors(image, avg_difference_threshold=0, max_colors=math.inf, min_pixel_percentage=1.0, ignore_colors=None, scan_mode="full"):
     """Extract unique colors from an image with smart reduction to meet maximum color limit."""
     if image.mode != 'RGBA':
         image = image.convert('RGBA')
@@ -70,8 +86,8 @@ def get_unique_colors(image, avg_difference_threshold=0, max_colors=math.inf, mi
     if ignore_colors is None:
         ignore_colors = []
 
-    color_percentages, total_counted_pixels = get_color_frequencies(image, ignore_colors, avg_difference_threshold)
-    total_pixels = image.width * image.height
+    color_percentages, total_counted_pixels = get_color_frequencies(image, ignore_colors, avg_difference_threshold, scan_mode)
+    total_pixels = image.width * (1 if scan_mode == "row" else image.height)
     ignored_pixels = total_pixels - total_counted_pixels
 
     print(f"\nPixel Analysis:")
@@ -92,7 +108,7 @@ def get_unique_colors(image, avg_difference_threshold=0, max_colors=math.inf, mi
         colors = reduce_colors(colors, valid_colors, max_colors)
 
     for color in colors:
-        print(f"Final color RGBA{color} ({color_percentages[color]:.2f}% of non-ignored pixels)")
+        print(f"Color RGBA{color} ({color_percentages[color]:.2f}% of non-ignored pixels)")
 
     return colors
 
@@ -115,7 +131,8 @@ def process_palette(
     max_colors=math.inf,
     min_pixel_percentage=1.0,
     ignore_colors=None,
-    image_size=(32, 32)
+    image_size=(32, 32),
+    scan_mode="full"
 ):
     """Process a palette image and save unique colors as images."""
     try:
@@ -125,7 +142,8 @@ def process_palette(
             avg_difference_threshold,
             max_colors,
             min_pixel_percentage,
-            ignore_colors
+            ignore_colors,
+            scan_mode
         )
         color_images = create_color_images(unique_colors, size=image_size)
         output_images(color_images, output_path)
@@ -143,5 +161,6 @@ if __name__ == "__main__":
         max_colors=10,
         min_pixel_percentage=1.0,
         ignore_colors=[(0, 0, 0, 0), (0, 0, 0, 255), (255, 255, 255, 255)],
-        image_size=(32, 32)
+        image_size=(32, 32),
+        scan_mode="row"  # Change to "full" to scan the entire image
     )
